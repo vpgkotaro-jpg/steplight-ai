@@ -1,0 +1,10 @@
+{
+  "name": "StepLight",
+  "short_name": "StepLight",
+  "description": "Turn an overwhelming task list into one clear next step.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbfaf7",
+  "theme_color": "#0b6e4f"
+}

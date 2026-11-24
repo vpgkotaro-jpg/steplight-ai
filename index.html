@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'self' data:">
+<title>StepLight</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root { --bg:#fbfaf7; --fg:#1d1d1b; --muted:#5d5b55; --accent:#0b6e4f; --line:#d8d4cb; --card:#ffffff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#15161a; --fg:#f2f1ee; --muted:#b5b2aa; --accent:#5fd3a6; --line:#3a3c44; --card:#1e2026; } }
+  :root[data-theme="dark"] { --bg:#15161a; --fg:#f2f1ee; --muted:#b5b2aa; --accent:#5fd3a6; --line:#3a3c44; --card:#1e2026; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  .tag { color:var(--muted); margin:0 0 20px; }
+  nav { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  button { font:inherit; min-height:44px; padding:8px 16px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button[aria-pressed="true"] { outline:2px solid var(--accent); }
+  textarea { width:100%; min-height:200px; font:inherit; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
+  ol.tasks { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  ol.tasks li { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+  .meta { color:var(--muted); font-size:0.9rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .step { font-size:1.5rem; font-weight:600; margin:8px 0 16px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .notice { color:var(--muted); font-size:0.95rem; margin-top:12px; }
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>StepLight</h1>
+  <p class="tag">Turn an overwhelming task list into one clear next step.</p>
+  <nav aria-label="Sections">
+    <button type="button" id="nav-dump" aria-pressed="true">1 Dump</button>
+    <button type="button" id="nav-list" aria-pressed="false">2 Pick</button>
+    <button type="button" id="nav-focus" aria-pressed="false">3 Focus</button>
+  </nav>
+  <p class="notice" id="howto">How to use: 1 paste your tasks and press "Make my list". 2 press "Start" on the task you choose. 3 in Focus, do the one step shown, then press Done. Keys: 1, 2, 3 switch screens; in Focus, D = Done, S = Too big, P = Pause.</p>
+  <div id="live" class="sr-only" aria-live="polite"></div>
+
+  <section id="view-dump" aria-labelledby="h-dump">
+    <h2 id="h-dump">Empty your head</h2>
+    <p class="meta">Paste anything. Bullets, numbers, [ ] boxes, semicolons and "then" are understood. Words like "fri" or "!!" are noticed. Nothing leaves this browser.</p>
+    <label for="dump" class="sr-only">Task dump</label>
+    <textarea id="dump" placeholder="- email Ms. Tan by fri&#10;- buy milk!!&#10;- write the essay then send it"></textarea>
+    <p class="row"><button type="button" class="primary" id="make-list">Make my list</button></p>
+  </section>
+
+  <section id="view-list" hidden aria-labelledby="h-list">
+    <h2 id="h-list">Pick one</h2>
+    <p class="meta">A suggested order: urgent first, then anything with a day, then your own order. You choose.</p>
+    <p class="meta" id="list-status"></p>
+    <ol class="tasks" id="task-list"></ol>
+    <p class="notice" id="empty-note" hidden>No open tasks. Go to 1 Dump to add more.</p>
+  </section>
+
+  <section id="view-focus" hidden aria-labelledby="h-focus">
+    <h2 id="h-focus">Focus</h2>
+    <div class="card" id="focus-card">
+      <p class="meta" id="focus-task"></p>
+      <p class="meta" id="focus-pos"></p>
+      <p class="step" id="focus-step" tabindex="-1"></p>
+      <div class="row">
+        <button type="button" class="primary" id="btn-done">Done (D)</button>
+        <button type="button" id="btn-small">Too big (S)</button>
+        <button type="button" id="btn-pause">Pause (P)</button>
+        <button type="button" id="btn-ai">Ask on-device AI</button>
+      </div>
+      <table id="compare" class="meta" hidden aria-label="Fixed step and on-device AI steps, side by side">
+        <thead><tr><th scope="col">Step</th><th scope="col">Fixed step (built in)</th><th scope="col">On-device AI</th></tr></thead>
+        <tbody id="compare-body"></tbody>
+      </table>
+      <div id="compare-choice" class="row" hidden>
+        <button type="button" id="btn-use-fixed" aria-pressed="true">Use the fixed step</button>
+        <button type="button" id="btn-use-ai" aria-pressed="false">Use the AI steps</button>
+      </div>
+      <p class="notice" id="chosen-note"></p>
+      <ol id="smaller" class="meta" hidden aria-label="Steps you are working through"></ol>
+      <p class="notice" id="ai-note" hidden></p>
+      <div id="pause-box" hidden>
+        <label for="pause-note">Note for future you</label>
+        <textarea id="pause-note" style="min-height:80px"></textarea>
+        <p class="row"><button type="button" id="btn-save-pause">Save and stop</button></p>
+      </div>
+    </div>
+    <p class="notice" id="resume-note" hidden></p>
+  </section>
+</main>
+<script src="steplight-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
